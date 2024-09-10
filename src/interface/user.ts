@@ -1,5 +1,5 @@
 export interface User {
-  id: string;
+  ID: string;
   name: string;
   email: string;
   password: string;
@@ -7,6 +7,7 @@ export interface User {
 }
 
 export interface UserDatabaseInterface {
-  saveUser(user: User): Promise<void>;
+  saveUser(name: string, email: string, password: string): Promise<User>;
   getUser(id: string): Promise<User | null>;
+  deleteUser(id: string): Promise<void>;
 }

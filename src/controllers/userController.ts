@@ -11,11 +11,11 @@ class UserController {
     return UserController.instance;
   }
 
-  public addUser(user: User, token: string): void {
+  public addUser(user: string, token: string): void {
     this.users.set(user.id, { user, token });
   }
 
-  public getUserToken(userId: string): UserToken | undefined {
+  public getUserToken(userId: string): string | undefined {
     return this.users.get(userId);
   }
 
