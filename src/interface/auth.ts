@@ -1,6 +1,9 @@
 export interface Session {
   userID: string;
   token: string;
+  created_at: Date;
+  updated_at: Date;
+  expires_at: Date;
 }
 
 export interface SessionDatabaseInterface {
