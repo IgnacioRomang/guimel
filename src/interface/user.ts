@@ -3,11 +3,18 @@ export interface User {
   name: string;
   email: string;
   password: string;
-  // Agrega otros campos de usuario según sea necesario
+}
+
+export interface UserToSave {
+  name: string;
+  email: string;
+  password: string;
 }
 
 export interface UserDatabaseInterface {
-  saveUser(name: string, email: string, password: string): Promise<User>;
-  getUser(id: string): Promise<User | null>;
-  deleteUser(id: string): Promise<void>;
+  saveUser(
+    userToSave: UserToSave
+  ): Promise<{ user: User | null; message: string }>;
+  getUser(id: string): Promise<{ user: User | null; message: string }>;
+  deleteUser(id: string): Promise<{ message: string }>;
 }
