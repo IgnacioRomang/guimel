@@ -28,7 +28,7 @@ export class Auth {
 
   public static async check(
     token: string
-  ): Promise<{ token: string; message: string }> {
+  ): Promise<{ token: string; id: string | null; message: string }> {
     try {
       const decoded = jwt.verify(token, Auth.SECRET_KEY) as jwt.JwtPayload;
 
@@ -45,10 +45,14 @@ export class Auth {
           expiresIn: Auth.TTL_AUTH,
         });
       }
-      return { token: tokenAux, message: Auth.code.CHECK_SUCCESS };
+      return {
+        token: tokenAux,
+        id: decoded.id,
+        message: Auth.code.CHECK_SUCCESS,
+      };
     } catch (error) {
       logger.error("Auth check error", error);
-      return { token: token, message: Auth.code.CHECK_FAILED };
+      return { token: token, id: null, message: Auth.code.CHECK_FAILED };
     }
   }
 
