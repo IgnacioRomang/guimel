@@ -2,23 +2,23 @@ import { Timestamp } from "firebase/firestore";
 import db, { Database } from "../databases";
 import { Session } from "../interface/session";
 import { User } from "../interface/user";
+import Hash from "./hash";
+import logger from "./logger";
+import jwt from "jsonwebtoken";
 
 export class Auth {
   private static instance: Auth;
-  private sessions: Map<string, Session> = new Map(); // a modo de cache
-
+  private sessions: Map<string, Session> = new Map();
+  private static SECRET_KEY = process.env.JWT_SECRET || "your-secret-key";
   public static code = {
-    USER_NOT_FOUND: "USER_NOT_FOUND",
-    SESSION_NOT_FOUND: "SESSION_NOT_FOUND",
-    SESSION_EXPIRED: "SESSION_EXPIRED",
-    SESSION_ACTIVE: "SESSION_ACTIVE",
-    INVALID_INPUT: "INVALID_INPUT",
+    CHECK_FAILED: "CHECK_FAILED",
+    CHECK_SUCCESS: "CHECK_SUCCESS",
     ATTEMPT_SUCCESS: "ATTEMPT_SUCCESS",
+    ATTEMPT_FAILED: "ATTEMPT_FAILED",
     FAILED: "FAILED",
-    SUCCESS: "SUCCESS"
   };
 
-  private constructor() { }
+  private constructor() {}
 
   public static getInstance(): Auth {
     if (!Auth.instance) {
@@ -31,58 +31,58 @@ export class Auth {
     const auth = Auth.getInstance();
     const thirtyMinutesInMillis = 30 * 60 * 1000;
 
-    let session = auth.sessions.get(token);
+    let session = auth.sessions.get(token) ?? null;
 
     if (!session) {
-      const dbResponse = await Session.getSession(token);
+      logger.info("Session don't exist on cache");
+      session = await Session.findSession(token);
 
-      if (!dbResponse?.session) {
-        return dbResponse?.message === Database.code.NOT_FOUND
-          ? Auth.code.SESSION_NOT_FOUND
-          : Auth.code.FAILED;
+      if (!session) {
+        logger.error("Session don't exist on DB");
+        return Auth.code.CHECK_FAILED;
       }
-      session = dbResponse.session;
       auth.sessions.set(token, session);
     }
 
     const timeRemaining = session.expires_at.toMillis() - Date.now();
 
     if (session.isExpired()) {
-      return Auth.code.SESSION_EXPIRED;
+      logger.warn("The session expired");
+      return Auth.code.CHECK_FAILED;
     }
 
     if (timeRemaining <= thirtyMinutesInMillis) {
+      logger.info("Session timestamp update");
       session.updateExpiresAt();
     }
 
-    return Auth.code.SESSION_ACTIVE;
+    return Auth.code.CHECK_SUCCESS;
   }
 
-  public static async attempt(name: string, password: string): Promise<{ session: Session | null, message: string }> {
+  public static async attempt(
+    name: string,
+    password: string
+  ): Promise<{ token: string | null; message: string }> {
     const auth = Auth.getInstance();
 
-    // Verificar credenciales del usuario
-    const user = await db?.getUserByEmail(email);
+    const user = await User.findByName(name);
     if (!user) {
-      return Auth.code.USER_NOT_FOUND;
+      return { token: null, message: Auth.code.ATTEMPT_FAILED };
     }
 
-    const isPasswordValid = await db?.validatePassword(user, password);
+    const isPasswordValid = Hash.check(password, user.password);
     if (!isPasswordValid) {
-      return Auth.code.INVALID_INPUT;
+      return { token: null, message: Auth.code.ATTEMPT_FAILED };
     }
 
-    // Generar un token único para la sesión
-    const token = crypto.randomUUID(); // Usar alguna función para generar un token único
+    const token = jwt.sign({ id: user.ID }, Auth.SECRET_KEY, {
+      expiresIn: "2h",
+    });
 
-    // Crear una nueva sesión
-    const session = new Session(user.id, token);
-    await session.save();
+    //const session = new Session(user.ID, token);
+    //await session.save();
+    //auth.sessions.set(token, session);
 
-    // Almacenar la sesión en caché
-    auth.sessions.set(token, session);
-
-    return session;
+    return { token: token, message: Auth.code.ATTEMPT_SUCCESS };
   }
-
 }
