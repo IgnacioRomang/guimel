@@ -4,7 +4,7 @@ import { Http } from "../utils/http";
 import { UserToSave } from "../interface/user";
 import Hash from "../utils/hash";
 import db, { Database } from "../databases";
-import logger from "../logs/logger";
+import logger from "../utils/logger";
 
 class UserController {
   private static instance: UserController;
@@ -29,7 +29,6 @@ class UserController {
     const { name, email, password } = req.body;
     let userToSave: UserToSave = {
       name: name,
-      email: email,
       password: await Hash.make(password),
     };
     let result = await db?.saveUser(userToSave);

@@ -12,13 +12,15 @@ import {
   deleteDoc,
   getDocs,
   getDoc,
+  updateDoc,
 } from "firebase/firestore";
 import { UserDatabaseInterface, User, UserToSave } from "../interface/user";
 import { v4 as uuidv4 } from "uuid";
 import Hash from "../utils/hash";
-import logger from "../logs/logger";
+import logger from "../utils/logger";
 import { Database } from ".";
-import { SessionToSave, Session } from "../interface/session";
+import { Session } from "../interface/session";
+
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
@@ -60,32 +62,25 @@ export class FirebaseDatabase extends Database {
 
   // START Metodos de UserDatabaseInterface
   public async saveUser(
-    userToSave: UserToSave
+    userToSave: User
   ): Promise<{ user: User | null; message: string }> {
     try {
       const usersQuery = query(
         collection(this.db, this.Collection.USERS),
-        where("email", "==", userToSave.email)
+        where("name", "==", userToSave.name)
       );
       const querySnapshot = await getDocs(usersQuery);
 
       if (!querySnapshot.empty) {
-        //EMAIL REPETIDO
         return {
           user: null,
           message: FirebaseDatabase.code.INVALID_INPUT,
         };
       }
-      const userId = uuidv4();
-      const userRef = doc(this.db, this.Collection.USERS, userId);
-      let user: User = {
-        ID: userId,
-        name: userToSave.name,
-        email: userToSave.email,
-        password: userToSave.password,
-      };
-      await setDoc(userRef, user);
-      return { user, message: FirebaseDatabase.code.SUCCESS };
+      userToSave.makeUUID();
+      const userRef = doc(this.db, this.Collection.USERS, userToSave.ID);
+      await setDoc(userRef, userToSave.map());
+      return { user: userToSave, message: FirebaseDatabase.code.SUCCESS };
     } catch (error) {
       logger.error("Error saving user:", error);
       return { user: null, message: FirebaseDatabase.code.FAILED };
@@ -99,7 +94,8 @@ export class FirebaseDatabase extends Database {
       const userRef = doc(this.db, this.Collection.USERS, id);
       const userSnapshot = await getDoc(userRef);
       if (userSnapshot.exists()) {
-        let user = userSnapshot.data() as User;
+        let data = userSnapshot.data();
+        let user = new User(data.name, data.password, data.ID)
         return { user: user, message: FirebaseDatabase.code.SUCCESS };
       } else {
         return { user: null, message: FirebaseDatabase.code.NOT_FOUND };
@@ -123,31 +119,53 @@ export class FirebaseDatabase extends Database {
   // END Metodos de UserDatabaseInterface
 
   // START Metodos de SessionDatabaseInterface
-  public async saveSession(sessionToSave: SessionToSave): Promise<Session> {
+  public async saveSession(sessionToSave: Session): Promise<{ session: Session | null, message: string }> {
     try {
-      let today = new Date();
-      const ttl = process.env.FIREBASE_TTL
-        ? Number(process.env.FIREBASE_TTL)
-        : 3600; // 3600 son 1h
-
-      let session: Session = {
-        userID: sessionToSave.userID,
-        token: sessionToSave.token,
-        created_at: Timestamp.fromDate(today),
-        updated_at: null,
-        expires_at: Timestamp.fromDate(new Date(today.getTime() + ttl * 1000)),
-      };
-      const sessionRef = doc(this.db, this.Collection.SESSION, session.token); // Usa el userID como ID del documento
-      await setDoc(sessionRef, session);
-      return session;
+      const sessionRef = doc(this.db, this.Collection.SESSION, sessionToSave.token);
+      await setDoc(sessionRef, sessionToSave.map());
+      return { session: sessionToSave, message: FirebaseDatabase.code.SUCCESS };
     } catch (error) {
-      return null;
+      logger.error("Error saving a session:", error)
+      return { session: null, message: FirebaseDatabase.code.FAILED };;
     }
   }
-  public async getSession(id: string): Promise<User | void> {
-    return;
+
+  public async getSession(token: string): Promise<{ session: Session | null, message: string }> {
+    try {
+      const sessionRef = doc(this.db, this.Collection.SESSION, token);
+      const sessionSnapshot = await getDoc(sessionRef);
+      if (sessionSnapshot.exists()) {
+        let session = sessionSnapshot.data() as Session;
+        return { session: session, message: FirebaseDatabase.code.SUCCESS };
+      } else {
+        return { session: null, message: FirebaseDatabase.code.NOT_FOUND };
+      }
+    } catch (error) {
+      logger.error("Error getting a session: ", error);
+      return { session: null, message: FirebaseDatabase.code.FAILED }
+    }
   }
-  public async deleteSession(id: string): Promise<void> {}
-  public async updateSession(id: string): Promise<void> {}
+
+  public async deleteSession(token: string): Promise<{ message: string }> {
+    try {
+      const sessionRef = doc(this.db, this.Collection.SESSION, token);
+      await deleteDoc(sessionRef);
+      return { message: FirebaseDatabase.code.SUCCESS }
+    } catch (error) {
+      logger.error("Error deleting a session: ", error);
+      return { message: FirebaseDatabase.code.FAILED }
+    }
+  }
+
+  public async updateSession(token: string, data: Record<string, any>): Promise<{ message: string }> {
+    try {
+      const sessionRef = doc(this.db, this.Collection.SESSION, token);
+      await updateDoc(sessionRef, data);
+      return { message: FirebaseDatabase.code.SUCCESS }
+    } catch (error) {
+      logger.error("Error updating a session: ", error);
+      return { message: FirebaseDatabase.code.FAILED }
+    }
+  }
   // END Metodos de SessionDatabaseInterface
 }

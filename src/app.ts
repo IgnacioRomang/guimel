@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import routers from "./routes";
-import logger from "./logs/logger";
+import logger from "./utils/logger";
 
 const app = express();
 app.use(morgan("combined"));

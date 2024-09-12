@@ -1,14 +1,13 @@
 import {
   Session,
   SessionDatabaseInterface,
-  SessionToSave,
+
 } from "../interface/session";
 import { User, UserDatabaseInterface, UserToSave } from "../interface/user";
 import { FirebaseDatabase } from "./firebase";
 
 export abstract class Database
-  implements UserDatabaseInterface, SessionDatabaseInterface
-{
+  implements UserDatabaseInterface, SessionDatabaseInterface {
   public static code = {
     SUCCESS: "SUCCESS",
     FAILED: "FAILED",
@@ -27,10 +26,10 @@ export abstract class Database
   // END Metodos de UserDatabaseInterface
 
   // START Metodos de SessionDatabaseInterface
-  public abstract saveSession(sessionToSave: SessionToSave): Promise<Session>;
-  public abstract getSession(id: string): Promise<User | void>;
-  public abstract deleteSession(id: string): Promise<void>;
-  public abstract updateSession(id: string): Promise<void>;
+  public abstract saveSession(sessionToSave: Session): Promise<{ session: Session | null, message: string }>;
+  public abstract getSession(token: string): Promise<{ session: Session | null, message: string }>;
+  public abstract deleteSession(token: string): Promise<{ message: string }>;
+  public abstract updateSession(token: string, data: Record<string, any>): Promise<{ message: string }>;
   // END Metodos de SessionDatabaseInterface
 }
 const databaseType = process.env.DB_TYPE || "firebase"; // Opción por defecto

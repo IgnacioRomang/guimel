@@ -1,4 +1,5 @@
-import db from "../databases";
+import { Timestamp } from "firebase/firestore";
+import db, { Database } from "../databases";
 import { Session } from "../interface/session";
 import { User } from "../interface/user";
 
@@ -13,9 +14,11 @@ export class Auth {
     SESSION_ACTIVE: "SESSION_ACTIVE",
     INVALID_INPUT: "INVALID_INPUT",
     ATTEMPT_SUCCESS: "ATTEMPT_SUCCESS",
+    FAILED: "FAILED",
+    SUCCESS: "SUCCESS"
   };
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): Auth {
     if (!Auth.instance) {
@@ -24,26 +27,62 @@ export class Auth {
     return Auth.instance;
   }
 
-  public static check(token: string): string {
+  public static async check(token: string): Promise<string> {
     const auth = Auth.getInstance();
-    //TODO: TIENE que leer la bd decir si existe una sesscion y si existe actualizar la fecha de expirate
-    return Auth.code.SESSION_NOT_FOUND;
-    return "";
-  }
+    const thirtyMinutesInMillis = 30 * 60 * 1000;
 
-  public static user(token: string): Promise<User | null> | string {
-    const auth = Auth.getInstance();
-    if (!auth.sessions.has(token)) return Auth.code.SESSION_NOT_FOUND;
     let session = auth.sessions.get(token);
-    const response = session?.userID ? db?.getUser(session.userID) : null;
-    if (response) {
+
+    if (!session) {
+      const dbResponse = await Session.getSession(token);
+
+      if (!dbResponse?.session) {
+        return dbResponse?.message === Database.code.NOT_FOUND
+          ? Auth.code.SESSION_NOT_FOUND
+          : Auth.code.FAILED;
+      }
+      session = dbResponse.session;
+      auth.sessions.set(token, session);
     }
-    return user ? response.user : Auth.code.USER_NOT_FOUND;
+
+    const timeRemaining = session.expires_at.toMillis() - Date.now();
+
+    if (session.isExpired()) {
+      return Auth.code.SESSION_EXPIRED;
+    }
+
+    if (timeRemaining <= thirtyMinutesInMillis) {
+      session.updateExpiresAt();
+    }
+
+    return Auth.code.SESSION_ACTIVE;
   }
 
-  public static attempt(email: string, password: string): Session | string {
+  public static async attempt(name: string, password: string): Promise<{ session: Session | null, message: string }> {
     const auth = Auth.getInstance();
-    //TODO: TERMINAR
-    return "";
+
+    // Verificar credenciales del usuario
+    const user = await db?.getUserByEmail(email);
+    if (!user) {
+      return Auth.code.USER_NOT_FOUND;
+    }
+
+    const isPasswordValid = await db?.validatePassword(user, password);
+    if (!isPasswordValid) {
+      return Auth.code.INVALID_INPUT;
+    }
+
+    // Generar un token único para la sesión
+    const token = crypto.randomUUID(); // Usar alguna función para generar un token único
+
+    // Crear una nueva sesión
+    const session = new Session(user.id, token);
+    await session.save();
+
+    // Almacenar la sesión en caché
+    auth.sessions.set(token, session);
+
+    return session;
   }
+
 }
