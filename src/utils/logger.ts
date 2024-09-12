@@ -23,24 +23,29 @@ const colors = {
 winston.addColors(colors);
 
 // Formato del log (tiempo, nivel, mensaje)
-const format = winston.format.combine(
-  winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+const fileFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.printf(info => `${info.timestamp} [${info.level}]: ${info.message}`)
+);
+
+const consoleFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.colorize({ all: true }),
-  winston.format.printf((info) => `${info.timestamp} [${info.level}]: ${info.message}`)
+  winston.format.printf(info => `${info.timestamp} [${info.level}]: ${info.message}`)
 );
 
 // Transportes para guardar los logs en archivos
 const transports = [
-  new winston.transports.Console(), // Mostrar logs en la consola
-  new winston.transports.File({ filename: path.join(__dirname, "../logs/error.log"), level: "error" }), // Solo errores
-  new winston.transports.File({ filename: path.join(__dirname, "../logs/all.log") }) // Todos los logs
+  new winston.transports.Console({ format: consoleFormat }), // Mostrar logs en la consola
+  new winston.transports.File({ filename: path.join(__dirname, "../logs/error.log"), level: "error", format: fileFormat }), // Solo errores
+  new winston.transports.File({ filename: path.join(__dirname, "../logs/all.log"), format: fileFormat }) // Todos los logs
 ];
 
 // Crear el logger con la configuración
 const logger = winston.createLogger({
   level: "debug", // Nivel mínimo que será registrado (error hasta debug)
   levels, // Niveles personalizados
-  format, // Formato de los logs
+  format: winston.format.simple(), // Formato de los logs
   transports // Transportes configurados
 });
 

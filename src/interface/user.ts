@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase/firestore";
-import db, { Database } from "../databases";
+import db from "../databases";
 
 export interface UserToSave {
   name: string;
@@ -7,6 +7,7 @@ export interface UserToSave {
 }
 import { v4 as uuidv4 } from "uuid";
 import Hash from "../utils/hash";
+import Database from "../databases/database";
 
 export interface UserDatabaseInterface {
   saveUser(

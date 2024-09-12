@@ -1,5 +1,4 @@
-import { Timestamp } from "firebase/firestore";
-import db, { Database } from "../databases";
+
 import { User } from "../interface/user";
 import Hash from "./hash";
 import logger from "./logger";
@@ -17,7 +16,7 @@ export class Auth {
     FAILED: "FAILED",
   };
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): Auth {
     if (!Auth.instance) {

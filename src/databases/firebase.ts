@@ -12,9 +12,12 @@ import {
   setDoc,
   where,
 } from "firebase/firestore";
-import { Database } from ".";
 import { User } from "../interface/user";
 import logger from "../utils/logger";
+import Database from "./database";
+
+import dotenv from 'dotenv';
+dotenv.config()
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
@@ -40,11 +43,12 @@ export class FirebaseDatabase extends Database {
   private constructor() {
     super();
     try {
+      logger.info(firebaseConfig);
       const app = initializeApp(firebaseConfig);
       this.db = getFirestore(app);
     } catch (error) {
       logger.error("Error initializing Firebase:", error);
-      throw new Error(FirebaseDatabase.code.DB_ERROR);
+      throw new Error(Database.code.DB_ERROR);
     }
   }
 
