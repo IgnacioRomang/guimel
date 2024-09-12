@@ -10,11 +10,9 @@ import {
   getFirestore,
   query,
   setDoc,
-  updateDoc,
   where,
 } from "firebase/firestore";
 import { Database } from ".";
-import { Session } from "../interface/session";
 import { User } from "../interface/user";
 import logger from "../utils/logger";
 
@@ -148,66 +146,4 @@ export class FirebaseDatabase extends Database {
     }
   }
   // END Metodos de UserDatabaseInterface
-
-  // START Metodos de SessionDatabaseInterface
-  public async saveSession(
-    sessionToSave: Session
-  ): Promise<{ session: Session | null; message: string }> {
-    try {
-      const sessionRef = doc(
-        this.db,
-        this.Collection.SESSION,
-        sessionToSave.token
-      );
-      await setDoc(sessionRef, sessionToSave.map());
-      return { session: sessionToSave, message: FirebaseDatabase.code.SUCCESS };
-    } catch (error) {
-      logger.error("Error saving a session:", error);
-      return { session: null, message: FirebaseDatabase.code.FAILED };
-    }
-  }
-
-  public async getSession(
-    token: string
-  ): Promise<{ session: Session | null; message: string }> {
-    try {
-      const sessionRef = doc(this.db, this.Collection.SESSION, token);
-      const sessionSnapshot = await getDoc(sessionRef);
-      if (sessionSnapshot.exists()) {
-        let session = sessionSnapshot.data() as Session;
-        return { session: session, message: FirebaseDatabase.code.SUCCESS };
-      } else {
-        return { session: null, message: FirebaseDatabase.code.NOT_FOUND };
-      }
-    } catch (error) {
-      logger.error("Error getting a session: ", error);
-      return { session: null, message: FirebaseDatabase.code.FAILED };
-    }
-  }
-
-  public async deleteSession(token: string): Promise<{ message: string }> {
-    try {
-      const sessionRef = doc(this.db, this.Collection.SESSION, token);
-      await deleteDoc(sessionRef);
-      return { message: FirebaseDatabase.code.SUCCESS };
-    } catch (error) {
-      logger.error("Error deleting a session: ", error);
-      return { message: FirebaseDatabase.code.FAILED };
-    }
-  }
-
-  public async updateSession(
-    token: string,
-    data: Record<string, any>
-  ): Promise<{ message: string }> {
-    try {
-      const sessionRef = doc(this.db, this.Collection.SESSION, token);
-      await updateDoc(sessionRef, data);
-      return { message: FirebaseDatabase.code.SUCCESS };
-    } catch (error) {
-      logger.error("Error updating a session: ", error);
-      return { message: FirebaseDatabase.code.FAILED };
-    }
-  }
-  // END Metodos de SessionDatabaseInterface
 }
